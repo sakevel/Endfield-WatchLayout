@@ -21,6 +21,7 @@ try:
  assert base64.b64decode(encoded)==icon,'Public API must serve the actual metadata icon'
 
  lua.execute((root/'tests/mock.lua').read_text(encoding='utf-8'))
+ lua.execute("WatchActive=true;local enabled=ZML.is_enabled;ZML.is_enabled=function(id)if id=='watch-layout' then return WatchActive end;return enabled(id)end;local register=ZML.register_lifecycle;ZML.register_lifecycle=function(id,h)if id=='watch-layout' then WatchLifecycle=h end;return register(id,h)end")
  lua.execute((root/'mod/watch-layout.lua').read_text(encoding='utf-8'))
  lua.globals().entry=lua.execute((root/'mod/config-entry.lua').read_text(encoding='utf-8'))
  if a.patched:
@@ -42,6 +43,15 @@ try:
   assert dots,'Actual native viewport red-dot contract changed'
   lua.globals().NativeRightDots=lua.execute('local RIGHT_BTN_ORDER={11,12,21,22,31,32,41,42,51,52,61,62,71,72,81,82,91,92,93}\nreturn function(self)\n'+dots.group(1)+'\nend')
  lua.execute('verifyRuntime(); verifyUI(entry)')
+ lua.execute("""
+    PanelId=PanelId or {Watch="Watch"};UIManager={IsShow=function()return true end};assert(not WatchLifecycle.prepare(false))
+    UIManager.IsShow=function()return false end;_G.ZMLModMenu=nil;assert(WatchLifecycle.prepare(false))
+    WatchActive=false;WatchLifecycle.changed(false)
+    local checked=0;for _,state in pairs(ZMLWatchLayout.states)do if state.ready then
+      local layout=state.layout;assert(layout.left[1]==101 and layout.left[2]==102 and layout.left[3]==103 and layout.left[4]==104);checked=checked+1
+    end end;assert(checked>0)
+    WatchActive=true;WatchLifecycle.changed(true)
+ """)
  print('PASS: actual service custom-only manifest, schema/save, strict production drag UI, native order/hide/restore/rebuild/forbidden/navigation/lifecycle')
 finally:
  server.stdin.close();server.wait(timeout=5)

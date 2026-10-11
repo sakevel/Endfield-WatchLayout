@@ -67,7 +67,9 @@ do
                 local ok,value=pcall(function()return assert(loadstring(LuaManagerInst:LoadLua("ZML/Api"),"@ZML/Api"))()end)
                 if ok and value.config_menu_version==1 then api=value end
             end
-            return api and api.get("watch-layout")or{enabled="false",layout="||"}
+            local values=api and api.get("watch-layout")or{enabled="false",layout="||"}
+            if api and api.is_enabled and not api.is_enabled('watch-layout')then values.enabled='false' end
+            return values
         end
         local fields={"anchorMin","anchorMax","pivot","sizeDelta","localScale","localRotation","anchoredPosition3D"}
         local function snapshot(rect)
@@ -211,6 +213,7 @@ do
                     if data.view~=nextView or side~="right"then data.column=nil end
                     data.view=nextView
                 end
+                if id==93 and api and api.is_enabled then s.base[id]=not api.is_enabled("mod-menu") end
                 data.needHide=s.base[id]or side=="hidden"
                 if side=="right"then selected[data.view]=not data.needHide end
             end
@@ -291,6 +294,13 @@ do
         function W.target(self,cached)
             if cached then for _,data in pairs(self.m_btnData)do if data.view and data.view.btn==cached and not data.needHide then return cached end end end
             return W.firstLeft(self)or W.first(self,RIGHT_BTN_ORDER)or self.view.settingNode.btn
+        end
+        local z=assert(loadstring(LuaManagerInst:LoadLua('ZML/Api'),'@ZML/Api'))()
+        if z.register_lifecycle then
+            z.register_lifecycle('watch-layout',{
+                prepare=function() return not UIManager:IsShow(PanelId.Watch) and not (_G.ZMLModMenu and _G.ZMLModMenu.active),'请先关闭 ESC 和模组配置菜单' end,
+                changed=function() for self,s in pairs(W.states)do if s.ready then W.refresh(self,RIGHT_BTN_ORDER)end end end
+            })
         end
         function W.catalog()
             local s=W.last and W.states[W.last]
